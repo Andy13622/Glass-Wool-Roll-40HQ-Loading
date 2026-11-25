@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>40' HQ Container Loading 3D Visualizer — Glass Wool Rolls</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #0b1120;
+      color: #f1f5f9;
+      overflow-x: hidden;
+    }
+    .font-mono-num {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    #canvas-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 440px;
+      background: radial-gradient(circle at 50% 40%, #1e293b 0%, #0f172a 65%, #070b14 100%);
+      overflow: hidden;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    /* Floating 3D Dimension Labels */
+    .dim-label {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(56, 189, 248, 0.65);
+      color: #e0f2fe;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(4px);
+      transition: opacity 0.2s ease;
+      z-index: 15;
+    }
+    .dim-label.roll-dim {
+      border-color: rgba(251, 191, 36, 0.8);
+      color: #fef3c7;
+      background: rgba(30, 27, 18, 0.92);
+    }
+    .dim-label.hidden-dim {
+      opacity: 0;
+      visibility: hidden;
+    }
+    /* Custom scrollbar for sidebar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    input[type="range"] {
+      accent-color: #38bdf8;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col lg:h-screen lg:overflow-hidden bg-slate-950 text-slate-100">
+
+  <!-- Top Navigation & Quotation Header -->
+  <header class="bg-slate-900/95 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3 z-20 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-sky-500/15 border border-sky-400/30 flex items-center justify-center text-sky-400 font-bold text-sm">
+        40'HQ
+      </div>
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-sm sm:text-base font-bold tracking-tight text-white">Glass Wool 40' HQ Container Load Planner</h1>
+          <span class="text-[11px] font-mono-num px-2 py-0.5 rounded-full bg-slate-800 text-sky-300 border border-slate-700">QTN: 20261119-1</span>
+        </div>
+        <p class="text-xs text-slate-400">Dalian Youlete Energy Conservation • Density 20 kg/m³ • Twin 455mm Strips (910mm Roll Width)</p>
+      </div>
+    </div>
+
+    <!-- Option Selector Tabs -->
+    <div class="flex flex-wrap items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800" id="option-tabs">
+      <button data-opt="0" class="opt-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-slate-950 shadow-sm">
+        Opt 1: 75mm <span class="opacity-80 font-mono-num">(603)</span>
+      </button>
+      <button data-opt="1" class="opt-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800">
+        Opt 2: 100mm <span class="opacity-80 font-mono-num">(641)</span>
+      </button>
+      <button data-opt="2" class="opt-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800">
+        Opt 3: 125mm <span class="opacity-80 font-mono-num">(615)</span>
+      </button>
+      <button data-opt="3" class="opt-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800">
+        Opt 4: 150mm <span class="opacity-80 font-mono-num">(641)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+
+    <!-- Left/Center: 3D Interactive Viewport -->
+    <div class="relative flex-1 flex flex-col min-h-[460px] lg:min-h-0">
+      <div id="canvas-container" class="flex-1">
+        <!-- Floating Top-Left Camera & Dimension Controls -->
+        <div class="absolute top-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 z-20 pointer-events-none">
+          <!-- Camera View Presets -->
+          <div class="flex flex-wrap items-center gap-1 bg-slate-900/85 backdrop-blur-md p-1 rounded-xl border border-slate-700/80 shadow-lg pointer-events-auto">
+            <button onclick="setCameraView('iso')" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition">Isometric</button>
+            <button onclick="setCameraView('door')" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition">Rear Door</button>
+            <button onclick="setCameraView('side')" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition">Side</button>
+            <button onclick="setCameraView('top')" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition">Top</button>
+            <button onclick="setCameraView('roll')" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-amber-300 hover:bg-slate-800 transition">Inspect Unit Roll</button>
+          </div>
+
+          <!-- Single Dedicated Show / Hide Dimensions Toggle Button -->
+          <button id="toggle-dimensions-btn" onclick="toggleDimensions()" class="pointer-events-auto flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 border border-sky-400/50 shadow-lg backdrop-blur-md transition active:scale-95">
+            <svg id="dim-eye-icon" class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span id="toggle-dim-text">Hide Dimensions</span>
+          </button>
+        </div>
+
+        <!-- Floating 3D Projected Dimension Labels -->
+        <div id="dim-labels-layer" class="absolute inset-0 pointer-events-none overflow-hidden">
+          <div id="lbl-cont-l" class="dim-label">40' HQ Length: 12.03 m (12,030 mm)</div>
+          <div id="lbl-cont-w" class="dim-label">Width: 2.35 m (2,350 mm)</div>
+          <div id="lbl-cont-h" class="dim-label">Height: 2.69 m (2,690 mm)</div>
+          <div id="lbl-roll-h" class="dim-label roll-dim">Roll Height: 910 mm (2×455 mm)</div>
+          <div id="lbl-roll-d-packed" class="dim-label roll-dim">Packed Ø: 420 mm (0.126 m³)</div>
+          <div id="lbl-roll-d-uncomp" class="dim-label roll-dim">Uncompressed Ø: 901 mm (0.580 m³)</div>
+        </div>
+
+        <!-- Bottom Viewport Legend & Loading Progress Slider -->
+        <div class="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-3 bg-slate-900/85 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-slate-800 z-20">
+          <div class="flex items-center gap-4 text-[11px] text-slate-300">
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>
+              Compressed Roll (2×455mm)
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full border border-dashed border-amber-300 bg-amber-400/20 inline-block"></span>
+              Uncompressed Ø Envelope
+            </span>
+            <span class="hidden sm:inline text-slate-400">Drag: Orbit • Scroll/Pinch: Zoom • Right-Drag: Pan</span>
+          </div>
+
+          <div class="flex items-center gap-2.5 w-full sm:w-auto">
+            <label for="load-slider" class="text-[11px] font-medium text-slate-300 whitespace-nowrap">
+              Load Fill: <span id="load-count-label" class="font-mono-num text-sky-400 font-semibold">603 / 603</span>
+            </label>
+            <input id="load-slider" type="range" min="1" max="603" value="603" class="w-full sm:w-36 h-1.5 bg-slate-700 rounded-lg cursor-pointer" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Engineering & Specification Dashboard -->
+    <aside class="w-full lg:w-[410px] xl:w-[440px] bg-slate-900 border-t lg:border-t-0 lg:border-l border-slate-800 p-4 overflow-y-auto flex flex-col gap-4 shrink-0">
+
+      <!-- Selected Option Title Banner -->
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] uppercase tracking-wider font-semibold text-sky-400" id="dash-opt-badge">Option 1 Specification</span>
+          <span class="text-xs font-mono-num text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-md" id="dash-fob-price">US$1.62 / m²</span>
+        </div>
+        <h2 class="text-lg font-bold text-white mt-1" id="dash-title">75 mm Glass Wool Roll (No Facing)</h2>
+        <p class="text-xs text-slate-400 mt-0.5" id="dash-subtitle">Unrolled: 8,500 mm L × 910 mm W (2×455 mm) × 75 mm THK</p>
+      </div>
+
+      <!-- Primary Metrics: 40HQ Loading Qty & Unit Roll Diameter / CBM -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-slate-800/50 border border-slate-700/70 rounded-xl p-3">
+          <div class="text-[11px] text-slate-400 font-medium">40' HQ Loading Qty</div>
+          <div class="text-xl font-bold font-mono-num text-white mt-0.5" id="stat-qty">603 <span class="text-xs font-normal text-slate-400">Rolls</span></div>
+          <div class="text-[11px] font-mono-num text-sky-300 mt-1" id="stat-total-area">4,664 m² • 6,996.3 kg</div>
+        </div>
+
+        <div class="bg-slate-800/50 border border-slate-700/70 rounded-xl p-3">
+          <div class="text-[11px] text-slate-400 font-medium">40' HQ Packed Volume</div>
+          <div class="text-xl font-bold font-mono-num text-emerald-400 mt-0.5" id="stat-total-cbm">76.0 <span class="text-xs font-normal text-slate-400">CBM</span></div>
+          <div class="text-[11px] font-mono-num text-slate-300 mt-1" id="stat-comp-ratio">Compression: ~4.6 : 1</div>
+        </div>
+
+        <!-- Unit Roll Diameter Card -->
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
+          <div class="text-[11px] text-amber-200/80 font-medium">Unit Roll Diameter (Ø)</div>
+          <div class="text-lg font-bold font-mono-num text-amber-300 mt-0.5" id="stat-packed-dia">420 mm <span class="text-[10px] font-normal text-amber-200/70">Packed</span></div>
+          <div class="text-[11px] font-mono-num text-slate-300 mt-1" id="stat-uncomp-dia">Uncompressed: 901 mm</div>
+        </div>
+
+        <!-- Unit Roll CBM Card -->
+        <div class="bg-sky-500/10 border border-sky-500/30 rounded-xl p-3">
+          <div class="text-[11px] text-sky-200/80 font-medium">Unit Roll CBM (m³/Roll)</div>
+          <div class="text-lg font-bold font-mono-num text-sky-300 mt-0.5" id="stat-packed-cbm">0.126 m³ <span class="text-[10px] font-normal text-sky-200/70">Packed</span></div>
+          <div class="text-[11px] font-mono-num text-slate-300 mt-1" id="stat-uncomp-cbm">Uncompressed: 0.580 m³</div>
+        </div>
+      </div>
+
+      <!-- Detailed Engineering Breakdown -->
+      <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2.5">Unit Roll & Container Breakdown</h3>
+        <dl class="space-y-1.5 text-xs">
+          <div class="flex justify-between py-1 border-b border-slate-800/80">
+            <dt class="text-slate-400">Roll Height / Width (2 Strips)</dt>
+            <dd class="font-mono-num text-slate-100">910 mm (455 mm × 2)</dd>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-800/80">
+            <dt class="text-slate-400">Thermal Resistance (R-Value)</dt>
+            <dd class="font-mono-num text-slate-100" id="detail-rval">2.050 m²·K/W (λ = 0.036)</dd>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-800/80">
+            <dt class="text-slate-400">Coverage & Weight / Roll</dt>
+            <dd class="font-mono-num text-slate-100" id="detail-unit-area-wt">7.74 m² / 11.60 kg</dd>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-800/80">
+            <dt class="text-slate-400">40' HQ Stacking Pattern</dt>
+            <dd class="font-mono-num text-sky-300" id="detail-stacking">3 Tiers High × ~201 Rolls/Tier</dd>
+          </div>
+          <div class="flex justify-between py-1">
+            <dt class="text-slate-400">Total FOB Dalian Amount</dt>
+            <dd class="font-mono-num font-semibold text-emerald-400" id="detail-fob-total">US$7,556.01</dd>
+          </div>
+        </dl>
+      </div>
+
+      <!-- All 4 Options Comparison Table -->
+      <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">All Options Comparison (1×40' HQ)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-[11px]">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="py-1.5 pr-2 font-medium">THK</th>
+                <th class="py-1.5 px-1.5 font-medium text-right">40HQ Qty</th>
+                <th class="py-1.5 px-1.5 font-medium text-right">Uncomp Ø</th>
+                <th class="py-1.5 px-1.5 font-medium text-right">Packed Ø</th>
+                <th class="py-1.5 pl-1.5 font-medium text-right">Unit CBM</th>
+              </tr>
+            </thead>
+            <tbody id="comparison-tbody" class="font-mono-num divide-y divide-slate-800/60">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. QUOTATION & ENGINEERING DATA FOR ALL 4 OPTIONS
+    // =========================================================================
+    const CONTAINER_DIMS = {
+      L: 12.03, // meters (40' HQ internal length)
+      W: 2.35,  // meters (40' HQ internal width)
+      H: 2.69,  // meters (40' HQ internal height)
+      CBM: 76.0 // effective usable volume in m³
+    };
+
+    const ROLL_HEIGHT_M = 0.910; // 910 mm (two 455 mm strips)
+
+    const OPTIONS = [
+      {
+        id: 0,
+        name: "Option 1",
+        thkMm: 75,
+        lengthMm: 8500,
+        widthMm: 910,
+        density: 20,
+        rValue: "2.050",
+        areaPerRoll: 7.74,
+        kgPerRoll: 11.60,
+        qty40HQ: 603,
+        totalArea: 4664,
+        totalKg: 6996.3,
+        fobUnit: "US$1.62",
+        fobTotal: "US$7,556.01",
+        // Uncompressed diameter: sqrt(4 * 8500 * 75 / pi) = 900.9 mm -> 901 mm
+        uncompDiaMm: 901,
+        // Uncompressed cylinder volume: pi * (0.9009/2)^2 * 0.910 = 0.580 m³
+        uncompCbm: 0.580,
+        // Packed cylinder volume in 76.0 CBM container: 76.0 / 603 = 0.1260 m³/roll
+        packedCbm: 0.126,
+        // Packed diameter: sqrt(4 * 0.12604 / (pi * 0.910)) = 0.420 m -> 420 mm
+        packedDiaMm: 420,
+        compRatio: "4.6 : 1",
+        colorHex: 0xfbbf24, // Warm fiberglass yellow-gold
+        bandHex: 0xd97706
+      },
+      {
+        id: 1,
+        name: "Option 2",
+        thkMm: 100,
+        lengthMm: 6000,
+        widthMm: 910,
+        density: 20,
+        rValue: "2.750",
+        areaPerRoll: 5.46,
+        kgPerRoll: 10.92,
+        qty40HQ: 641,
+        totalArea: 3500,
+        totalKg: 6999.7,
+        fobUnit: "US$2.15",
+        fobTotal: "US$7,524.70",
+        // Uncompressed diameter: sqrt(4 * 6000 * 100 / pi) = 874.0 mm -> 874 mm
+        uncompDiaMm: 874,
+        // Uncompressed cylinder volume: pi * (0.874/2)^2 * 0.910 = 0.546 m³
+        uncompCbm: 0.546,
+        // Packed cylinder volume: 76.0 / 641 = 0.1186 m³/roll -> 0.119 m³
+        packedCbm: 0.119,
+        // Packed diameter: sqrt(4 * 0.11856 / (pi * 0.910)) = 0.407 m -> 407 mm
+        packedDiaMm: 407,
+        compRatio: "4.6 : 1",
+        colorHex: 0xf59e0b,
+        bandHex: 0xb45309
+      },
+      {
+        id: 2,
+        name: "Option 3",
+        thkMm: 125,
+        lengthMm: 5000,
+        widthMm: 910,
+        density: 20,
+        rValue: "3.450",
+        areaPerRoll: 4.55,
+        kgPerRoll: 11.38,
+        qty40HQ: 615,
+        totalArea: 2798,
+        totalKg: 6995.6,
+        fobUnit: "US$2.69",
+        fobTotal: "US$7,527.29",
+        // Uncompressed diameter: sqrt(4 * 5000 * 125 / pi) = 892.1 mm -> 892 mm
+        uncompDiaMm: 892,
+        // Uncompressed cylinder volume: pi * (0.8921/2)^2 * 0.910 = 0.569 m³
+        uncompCbm: 0.569,
+        // Packed cylinder volume: 76.0 / 615 = 0.1236 m³/roll -> 0.124 m³
+        packedCbm: 0.124,
+        // Packed diameter: sqrt(4 * 0.12358 / (pi * 0.910)) = 0.416 m -> 416 mm
+        packedDiaMm: 416,
+        compRatio: "4.6 : 1",
+        colorHex: 0xfbbf24,
+        bandHex: 0xd97706
+      },
+      {
+        id: 3,
+        name: "Option 4",
+        thkMm: 150,
+        lengthMm: 4000,
+        widthMm: 910,
+        density: 20,
+        rValue: "4.150",
+        areaPerRoll: 3.64,
+        kgPerRoll: 10.92,
+        qty40HQ: 641,
+        totalArea: 2333,
+        totalKg: 6999.7,
+        fobUnit: "US$3.23",
+        fobTotal: "US$7,536.37",
+        // Uncompressed diameter: sqrt(4 * 4000 * 150 / pi) = 874.0 mm -> 874 mm
+        uncompDiaMm: 874,
+        // Uncompressed cylinder volume: pi * (0.874/2)^2 * 0.910 = 0.546 m³
+        uncompCbm: 0.546,
+        // Packed cylinder volume: 76.0 / 641 = 0.1186 m³/roll -> 0.119 m³
+        packedCbm: 0.119,
+        // Packed diameter: 407 mm
+        packedDiaMm: 407,
+        compRatio: "4.6 : 1",
+        colorHex: 0xf59e0b,
+        bandHex: 0xb45309
+      }
+    ];
+
+    let currentOptionIdx = 0;
+    let showDimensions = true;
+
+    // =========================================================================
+    // 2. THREE.JS SCENE SETUP & CUSTOM ORBIT CONTROLS
+    // =========================================================================
+    const containerEl = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(42, containerEl.clientWidth / containerEl.clientHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(containerEl.clientWidth, containerEl.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    containerEl.insertBefore(renderer.domElement, containerEl.firstChild);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambientLight);
+
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.85);
+    dirLight1.position.set(10, 16, 12);
+    dirLight1.castShadow = true;
+    scene.add(dirLight1);
+
+    const dirLight2 = new THREE.DirectionalLight(0x93c5fd, 0.45);
+    dirLight2.position.set(-12, 8, -10);
+    scene.add(dirLight2);
+
+    // Ground Grid
+    const gridHelper = new THREE.GridHelper(24, 24, 0x334155, 0x1e293b);
+    gridHelper.position.y = -0.01;
+    scene.add(gridHelper);
+
+    // Groups for organization
+    const containerGroup = new THREE.Group();
+    const rollsGroup = new THREE.Group();
+    const referenceRollGroup = new THREE.Group();
+    const dimensionsGroup = new THREE.Group();
+
+    scene.add(containerGroup);
+    scene.add(rollsGroup);
+    scene.add(referenceRollGroup);
+    scene.add(dimensionsGroup);
+
+    // =========================================================================
+    // 3. BUILD 40' HQ CONTAINER (12.03m X x 2.69m Y x 2.35m Z)
+    // =========================================================================
+    function buildContainer() {
+      const L = CONTAINER_DIMS.L;
+      const H = CONTAINER_DIMS.H;
+      const W = CONTAINER_DIMS.W;
+
+      // Floor deck
+      const floorGeo = new THREE.BoxGeometry(L, 0.06, W);
+      const floorMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.85,
+        metalness: 0.2
+      });
+      const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      floorMesh.position.set(0, -0.03, 0);
+      floorMesh.receiveShadow = true;
+      containerGroup.add(floorMesh);
+
+      // Semi-transparent container walls
+      const boxGeo = new THREE.BoxGeometry(L, H, W);
+      const boxMat = new THREE.MeshPhysicalMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.06,
+        roughness: 0.2,
+        metalness: 0.1,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+      boxMesh.position.set(0, H / 2, 0);
+      containerGroup.add(boxMesh);
+
+      // Crisp structural edges
+      const edgesGeo = new THREE.EdgesGeometry(boxGeo);
+      const edgesMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.75 });
+      const edgesLine = new THREE.LineSegments(edgesGeo, edgesMat);
+      edgesLine.position.set(0, H / 2, 0);
+      containerGroup.add(edgesLine);
+
+      // Corner posts (thicker industrial beams)
+      const postMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6, roughness: 0.3 });
+      const postGeo = new THREE.BoxGeometry(0.08, H, 0.08);
+      const offsets = [
+        [-L / 2, -W / 2],
+        [-L / 2, W / 2],
+        [L / 2, -W / 2],
+        [L / 2, W / 2]
+      ];
+      offsets.forEach(([px, pz]) => {
+        const post = new THREE.Mesh(postGeo, postMat);
+        post.position.set(px, H / 2, pz);
+        containerGroup.add(post);
+      });
+
+      // Rear Door Frame indicator at +X end
+      const doorFrameMat = new THREE.LineBasicMaterial({ color: 0x34d399, linewidth: 2 });
+      const doorPts = [
+        new THREE.Vector3(L / 2, 0, -W / 2),
+        new THREE.Vector3(L / 2, H, -W / 2),
+        new THREE.Vector3(L / 2, H, W / 2),
+        new THREE.Vector3(L / 2, 0, W / 2),
+        new THREE.Vector3(L / 2, 0, -W / 2)
+      ];
+      const doorGeo = new THREE.BufferGeometry().setFromPoints(doorPts);
+      containerGroup.add(new THREE.Line(doorGeo, doorFrameMat));
+    }
+
+    // =========================================================================
+    // 4. GENERATE PACKED ROLL POSITIONS & INSTANCED 3D MESHES
+    // =========================================================================
+    let rollInstancedMesh = null;
+    let stripSeamInstancedMesh = null;
+    let rollTransforms = [];
+
+    function computeRollPacking(opt) {
+      // Container internal space: L = 12.03m, W = 2.35m, H = 2.69m
+      // Rolls stand vertically: Height = 0.910m -> 3 tiers high (3 * 0.910m = 2.73m, slightly compressed vertically to 0.893m per tier inside 2.69m HQ height)
+      const tiers = 3;
+      const tierHeight = (CONTAINER_DIMS.H - 0.02) / tiers; // ~0.89m effective vertical pitch
+      const targetQty = opt.qty40HQ;
+      const rollsPerTierTarget = Math.ceil(targetQty / tiers); // ~201 to 214 rolls per tier
+
+      // Staggered hexagonal / staggered-row packing along Length (X) and Width (Z)
+      const d = opt.packedDiaMm / 1000; // ~0.407m - 0.420m
+      // Determine rows across width (Z = 2.35m): 5 or 6 rows staggered
+      const colsZ = 6;
+      const pitchZ = (CONTAINER_DIMS.W - d) / (colsZ - 1);
+
+      const rowsX = Math.ceil(rollsPerTierTarget / colsZ);
+      const pitchX = (CONTAINER_DIMS.L - d) / (rowsX - 1);
+
+      const positions = [];
+      // Load from front wall (-X) toward rear doors (+X), bottom tier (Y=0) to top tier (Y=2)
+      for (let ix = 0; ix < rowsX; ix++) {
+        for (let ty = 0; ty < tiers; ty++) {
+          for (let iz = 0; iz < colsZ; iz++) {
+            if (positions.length >= targetQty) break;
+
+            // Slight stagger offset on alternating rows for realistic nested roll packing
+            const staggerZ = (ix % 2 === 1) ? (pitchZ * 0.12 * (iz % 2 === 0 ? 1 : -1)) : 0;
+            const x = -CONTAINER_DIMS.L / 2 + d / 2 + ix * pitchX;
+            const y = tierHeight * 0.5 + ty * tierHeight;
+            const z = -CONTAINER_DIMS.W / 2 + d / 2 + iz * pitchZ + staggerZ;
+
+            positions.push({ x, y, z, scaleY: tierHeight * 0.985 });
+          }
+        }
+      }
+      return positions;
+    }
+
+    function buildRollsForOption(opt) {
+      // Clear previous meshes
+      while (rollsGroup.children.length > 0) {
+        const child = rollsGroup.children[0];
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+        rollsGroup.remove(child);
+      }
+
+      const radius = (opt.packedDiaMm / 1000) / 2;
+      const rollGeo = new THREE.CylinderGeometry(radius * 0.985, radius * 0.985, 1, 20);
+      const rollMat = new THREE.MeshStandardMaterial({
+        color: opt.colorHex,
+        roughness: 0.72,
+        metalness: 0.05
+      });
+
+      // Center seam band showing the two 455mm strips (total 910mm)
+      const seamGeo = new THREE.CylinderGeometry(radius * 0.992, radius * 0.992, 0.035, 20);
+      const seamMat = new THREE.MeshStandardMaterial({
+        color: 0xfef3c7,
+        roughness: 0.4,
+        metalness: 0.1
+      });
+
+      rollTransforms = computeRollPacking(opt);
+      const count = rollTransforms.length;
+
+      rollInstancedMesh = new THREE.InstancedMesh(rollGeo, rollMat, count);
+      stripSeamInstancedMesh = new THREE.InstancedMesh(seamGeo, seamMat, count);
+
+      const dummy = new THREE.Object3D();
+      const seamDummy = new THREE.Object3D();
+
+      rollTransforms.forEach((pos, idx) => {
+        dummy.position.set(pos.x, pos.y, pos.z);
+        dummy.scale.set(1, pos.scaleY, 1);
+        dummy.updateMatrix();
+        rollInstancedMesh.setMatrixAt(idx, dummy.matrix);
+
+        seamDummy.position.set(pos.x, pos.y, pos.z);
+        seamDummy.scale.set(1, 1, 1);
+        seamDummy.updateMatrix();
+        stripSeamInstancedMesh.setMatrixAt(idx, seamDummy.matrix);
+      });
+
+      rollInstancedMesh.instanceMatrix.needsUpdate = true;
+      stripSeamInstancedMesh.instanceMatrix.needsUpdate = true;
+
+      rollsGroup.add(rollInstancedMesh);
+      rollsGroup.add(stripSeamInstancedMesh);
+
+      // Update slider max & count
+      const slider = document.getElementById('load-slider');
+      slider.max = count;
+      slider.value = count;
+      updateVisibleRollCount(count);
+    }
+
+    function updateVisibleRollCount(visibleCount) {
+      if (!rollInstancedMesh || !stripSeamInstancedMesh) return;
+      rollInstancedMesh.count = visibleCount;
+      stripSeamInstancedMesh.count = visibleCount;
+      document.getElementById('load-count-label').textContent = `${visibleCount} / ${rollTransforms.length}`;
+    }
+
+    // =========================================================================
+    // 5. REFERENCE UNIT ROLL (SHOWING 2x455mm STRIPS, PACKED & UNCOMPRESSED Ø)
+    // =========================================================================
+    const REF_ROLL_POS = new THREE.Vector3(-4.2, 0, 2.55); // Positioned cleanly beside the container
+
+    function buildReferenceUnitRoll(opt) {
+      while (referenceRollGroup.children.length > 0) {
+        const child = referenceRollGroup.children[0];
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+        referenceRollGroup.remove(child);
+      }
+
+      const packedR = (opt.packedDiaMm / 1000) / 2;
+      const uncompR = (opt.uncompDiaMm / 1000) / 2;
+      const h = ROLL_HEIGHT_M; // 0.910m
+
+      // Bottom 455mm strip
+      const stripGeo = new THREE.CylinderGeometry(packedR, packedR, h / 2 - 0.004, 32);
+      const stripMat1 = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.65 });
+      const stripMat2 = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.65 });
+
+      const bottomStrip = new THREE.Mesh(stripGeo, stripMat1);
+      bottomStrip.position.set(REF_ROLL_POS.x, h * 0.25, REF_ROLL_POS.z);
+      referenceRollGroup.add(bottomStrip);
+
+      // Top 455mm strip
+      const topStrip = new THREE.Mesh(stripGeo, stripMat2);
+      topStrip.position.set(REF_ROLL_POS.x, h * 0.75, REF_ROLL_POS.z);
+      referenceRollGroup.add(topStrip);
+
+      // Packaging strap ring in center
+      const strapGeo = new THREE.CylinderGeometry(packedR * 1.01, packedR * 1.01, 0.03, 32);
+      const strapMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+      const strap = new THREE.Mesh(strapGeo, strapMat);
+      strap.position.set(REF_ROLL_POS.x, h * 0.5, REF_ROLL_POS.z);
+      referenceRollGroup.add(strap);
+
+      // Uncompressed Diameter Wireframe Ghost Cylinder
+      const ghostGeo = new THREE.CylinderGeometry(uncompR, uncompR, h, 36, 1, true);
+      const ghostMat = new THREE.MeshBasicMaterial({
+        color: 0xfde68a,
+        transparent: true,
+        opacity: 0.14,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const ghostMesh = new THREE.Mesh(ghostGeo, ghostMat);
+      ghostMesh.position.set(REF_ROLL_POS.x, h / 2, REF_ROLL_POS.z);
+      referenceRollGroup.add(ghostMesh);
+
+      // Dashed ring at top & bottom of uncompressed diameter
+      const ringPts = [];
+      const segments = 64;
+      for (let i = 0; i <= segments; i++) {
+        const theta = (i / segments) * Math.PI * 2;
+        ringPts.push(new THREE.Vector3(
+          REF_ROLL_POS.x + Math.cos(theta) * uncompR,
+          0.01,
+          REF_ROLL_POS.z + Math.sin(theta) * uncompR
+        ));
+      }
+      const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+      const ringMat = new THREE.LineDashedMaterial({ color: 0xfbbf24, dashSize: 0.06, gapSize: 0.04 });
+      const bottomRing = new THREE.Line(ringGeo, ringMat);
+      bottomRing.computeLineDistances();
+      referenceRollGroup.add(bottomRing);
+
+      const topRing = bottomRing.clone();
+      topRing.position.y = h;
+      referenceRollGroup.add(topRing);
+    }
+
+    // =========================================================================
+    // 6. 3D DIMENSION LINES & PROJECTED FLOATING LABELS
+    // =========================================================================
+    const labelAnchors = {
+      contL: new THREE.Vector3(0, -0.18, -CONTAINER_DIMS.W / 2 - 0.35),
+      contW: new THREE.Vector3(CONTAINER_DIMS.L / 2 + 0.35, -0.18, 0),
+      contH: new THREE.Vector3(CONTAINER_DIMS.L / 2 + 0.35, CONTAINER_DIMS.H / 2, -CONTAINER_DIMS.W / 2 - 0.25),
+      rollH: new THREE.Vector3(REF_ROLL_POS.x - 0.65, ROLL_HEIGHT_M / 2, REF_ROLL_POS.z),
+      rollDPacked: new THREE.Vector3(REF_ROLL_POS.x, ROLL_HEIGHT_M + 0.16, REF_ROLL_POS.z),
+      rollDUncomp: new THREE.Vector3(REF_ROLL_POS.x + 0.55, 0.08, REF_ROLL_POS.z + 0.45)
+    };
+
+    function createDimensionLine(p1, p2, colorHex) {
+      const mat = new THREE.LineBasicMaterial({ color: colorHex });
+      const geo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+      const line = new THREE.Line(geo, mat);
+      dimensionsGroup.add(line);
+
+      // End ticks
+      const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
+      const perp = Math.abs(dir.y) > 0.9
+        ? new THREE.Vector3(0.08, 0, 0)
+        : new THREE.Vector3(0, 0.08, 0);
+
+      const tick1Geo = new THREE.BufferGeometry().setFromPoints([
+        p1.clone().sub(perp),
+        p1.clone().add(perp)
+      ]);
+      const tick2Geo = new THREE.BufferGeometry().setFromPoints([
+        p2.clone().sub(perp),
+        p2.clone().add(perp)
+      ]);
+      dimensionsGroup.add(new THREE.Line(tick1Geo, mat));
+      dimensionsGroup.add(new THREE.Line(tick2Geo, mat));
+    }
+
+    function buildDimensionLines(opt) {
+      while (dimensionsGroup.children.length > 0) {
+        const child = dimensionsGroup.children[0];
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+        dimensionsGroup.remove(child);
+      }
+
+      const L = CONTAINER_DIMS.L;
+      const W = CONTAINER_DIMS.W;
+      const H = CONTAINER_DIMS.H;
+
+      // Container Length Dimension Line
+      createDimensionLine(
+        new THREE.Vector3(-L / 2, -0.05, -W / 2 - 0.35),
+        new THREE.Vector3(L / 2, -0.05, -W / 2 - 0.35),
+        0x38bdf8
+      );
+
+      // Container Width Dimension Line
+      createDimensionLine(
+        new THREE.Vector3(L / 2 + 0.35, -0.05, -W / 2),
+        new THREE.Vector3(L / 2 + 0.35, -0.05, W / 2),
+        0x38bdf8
+      );
+
+      // Container Height Dimension Line
+      createDimensionLine(
+        new THREE.Vector3(L / 2 + 0.35, 0, -W / 2 - 0.25),
+        new THREE.Vector3(L / 2 + 0.35, H, -W / 2 - 0.25),
+        0x38bdf8
+      );
+
+      // Reference Roll Height Line (910 mm)
+      const packedR = (opt.packedDiaMm / 1000) / 2;
+      const uncompR = (opt.uncompDiaMm / 1000) / 2;
+
+      createDimensionLine(
+        new THREE.Vector3(REF_ROLL_POS.x - uncompR - 0.15, 0, REF_ROLL_POS.z),
+        new THREE.Vector3(REF_ROLL_POS.x - uncompR - 0.15, ROLL_HEIGHT_M, REF_ROLL_POS.z),
+        0xfbbf24
+      );
+
+      // Packed Diameter Line across top of roll
+      createDimensionLine(
+        new THREE.Vector3(REF_ROLL_POS.x - packedR, ROLL_HEIGHT_M + 0.06, REF_ROLL_POS.z),
+        new THREE.Vector3(REF_ROLL_POS.x + packedR, ROLL_HEIGHT_M + 0.06, REF_ROLL_POS.z),
+        0xfbbf24
+      );
+
+      // Uncompressed Diameter Line across base
+      createDimensionLine(
+        new THREE.Vector3(REF_ROLL_POS.x - uncompR, 0.02, REF_ROLL_POS.z + uncompR + 0.12),
+        new THREE.Vector3(REF_ROLL_POS.x + uncompR, 0.02, REF_ROLL_POS.z + uncompR + 0.12),
+        0xfde68a
+      );
+
+      // Update anchor positions & text
+      labelAnchors.rollH.set(REF_ROLL_POS.x - uncompR - 0.2, ROLL_HEIGHT_M / 2, REF_ROLL_POS.z);
+      labelAnchors.rollDPacked.set(REF_ROLL_POS.x, ROLL_HEIGHT_M + 0.22, REF_ROLL_POS.z);
+      labelAnchors.rollDUncomp.set(REF_ROLL_POS.x, 0.05, REF_ROLL_POS.z + uncompR + 0.25);
+
+      document.getElementById('lbl-roll-d-packed').textContent =
+        `Packed Ø: ${opt.packedDiaMm} mm (${opt.packedCbm.toFixed(3)} m³)`;
+      document.getElementById('lbl-roll-d-uncomp').textContent =
+        `Uncompressed Ø: ${opt.uncompDiaMm} mm (${opt.uncompCbm.toFixed(3)} m³)`;
+    }
+
+    function updateProjectedLabels() {
+      if (!showDimensions) return;
+
+      const width = containerEl.clientWidth;
+      const height = containerEl.clientHeight;
+
+      const mappings = [
+        { id: 'lbl-cont-l', vec: labelAnchors.contL },
+        { id: 'lbl-cont-w', vec: labelAnchors.contW },
+        { id: 'lbl-cont-h', vec: labelAnchors.contH },
+        { id: 'lbl-roll-h', vec: labelAnchors.rollH },
+        { id: 'lbl-roll-d-packed', vec: labelAnchors.rollDPacked },
+        { id: 'lbl-roll-d-uncomp', vec: labelAnchors.rollDUncomp }
+      ];
+
+      mappings.forEach(({ id, vec }) => {
+        const el = document.getElementById(id);
+        const projected = vec.clone().project(camera);
+        if (projected.z > 1) {
+          el.style.display = 'none';
+        } else {
+          el.style.display = 'block';
+          const x = (projected.x * 0.5 + 0.5) * width;
+          const y = (-(projected.y * 0.5) + 0.5) * height;
+          el.style.left = `${x}px`;
+          el.style.top = `${y}px`;
+        }
+      });
+    }
+
+    // Single Button to Show and Hide Dimensions
+    function toggleDimensions() {
+      showDimensions = !showDimensions;
+      dimensionsGroup.visible = showDimensions;
+
+      const labels = document.querySelectorAll('.dim-label');
+      labels.forEach(lbl => {
+        if (showDimensions) {
+          lbl.classList.remove('hidden-dim');
+        } else {
+          lbl.classList.add('hidden-dim');
+        }
+      });
+
+      const btnText = document.getElementById('toggle-dim-text');
+      const btn = document.getElementById('toggle-dimensions-btn');
+      if (showDimensions) {
+        btnText.textContent = 'Hide Dimensions';
+        btn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-600');
+        btn.classList.add('bg-sky-500/20', 'text-sky-200', 'border-sky-400/50');
+      } else {
+        btnText.textContent = 'Show Dimensions';
+        btn.classList.remove('bg-sky-500/20', 'text-sky-200', 'border-sky-400/50');
+        btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-600');
+      }
+    }
+
+    // =========================================================================
+    // 7. CAMERA ORBIT / ZOOM / PAN CONTROLLER & PRESET VIEWS
+    // =========================================================================
+    const orbitState = {
+      target: new THREE.Vector3(-0.3, 1.15, 0.3),
+      radius: 15.5,
+      theta: 0.68, // azimuth
+      phi: 1.08,   // polar angle from Y axis
+      isDragging: false,
+      isPanning: false,
+      prevX: 0,
+      prevY: 0
+    };
+
+    function updateCameraFromOrbit() {
+      orbitState.phi = Math.max(0.12, Math.min(Math.PI / 2 - 0.02, orbitState.phi));
+      orbitState.radius = Math.max(2.2, Math.min(35, orbitState.radius));
+
+      const sinPhi = Math.sin(orbitState.phi);
+      camera.position.set(
+        orbitState.target.x + orbitState.radius * sinPhi * Math.sin(orbitState.theta),
+        orbitState.target.y + orbitState.radius * Math.cos(orbitState.phi),
+        orbitState.target.z + orbitState.radius * sinPhi * Math.cos(orbitState.theta)
+      );
+      camera.lookAt(orbitState.target);
+    }
+
+    function setCameraView(view) {
+      if (view === 'iso') {
+        orbitState.target.set(-0.3, 1.15, 0.3);
+        orbitState.radius = 15.5;
+        orbitState.theta = 0.68;
+        orbitState.phi = 1.08;
+      } else if (view === 'door') {
+        orbitState.target.set(0, 1.35, 0);
+        orbitState.radius = 11.5;
+        orbitState.theta = Math.PI / 2;
+        orbitState.phi = 1.42;
+      } else if (view === 'side') {
+        orbitState.target.set(0, 1.3, 0);
+        orbitState.radius = 14.5;
+        orbitState.theta = 0;
+        orbitState.phi = 1.45;
+      } else if (view === 'top') {
+        orbitState.target.set(0, 0.5, 0.3);
+        orbitState.radius = 16.5;
+        orbitState.theta = 0;
+        orbitState.phi = 0.15;
+      } else if (view === 'roll') {
+        orbitState.target.set(REF_ROLL_POS.x, 0.48, REF_ROLL_POS.z);
+        orbitState.radius = 2.8;
+        orbitState.theta = 0.55;
+        orbitState.phi = 1.15;
+      }
+      updateCameraFromOrbit();
+    }
+
+    // Mouse & Touch Event Listeners on Renderer Canvas
+    const domElem = renderer.domElement;
+
+    domElem.addEventListener('mousedown', (e) => {
+      orbitState.isDragging = true;
+      orbitState.isPanning = (e.button === 2 || e.shiftKey);
+      orbitState.prevX = e.clientX;
+      orbitState.prevY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!orbitState.isDragging) return;
+      const dx = e.clientX - orbitState.prevX;
+      const dy = e.clientY - orbitState.prevY;
+      orbitState.prevX = e.clientX;
+      orbitState.prevY = e.clientY;
+
+      if (orbitState.isPanning) {
+        const panSpeed = orbitState.radius * 0.0012;
+        const right = new THREE.Vector3();
+        const up = new THREE.Vector3();
+        camera.getWorldDirection(up);
+        right.crossVectors(up, camera.up).normalize();
+        orbitState.target.addScaledVector(right, -dx * panSpeed);
+        orbitState.target.y += dy * panSpeed;
+      } else {
+        orbitState.theta -= dx * 0.007;
+        orbitState.phi -= dy * 0.007;
+      }
+      updateCameraFromOrbit();
+    });
+
+    window.addEventListener('mouseup', () => {
+      orbitState.isDragging = false;
+    });
+
+    domElem.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    domElem.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      orbitState.radius *= (1 + e.deltaY * 0.001);
+      updateCameraFromOrbit();
+    }, { passive: false });
+
+    // Touch support
+    let lastTouchDist = 0;
+    domElem.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        orbitState.isDragging = true;
+        orbitState.prevX = e.touches[0].clientX;
+        orbitState.prevY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        orbitState.isDragging = false;
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastTouchDist = Math.hypot(dx, dy);
+      }
+    }, { passive: true });
+
+    domElem.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1 && orbitState.isDragging) {
+        const dx = e.touches[0].clientX - orbitState.prevX;
+        const dy = e.touches[0].clientY - orbitState.prevY;
+        orbitState.prevX = e.touches[0].clientX;
+        orbitState.prevY = e.touches[0].clientY;
+        orbitState.theta -= dx * 0.008;
+        orbitState.phi -= dy * 0.008;
+        updateCameraFromOrbit();
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        if (lastTouchDist > 0) {
+          orbitState.radius *= (lastTouchDist / dist);
+          updateCameraFromOrbit();
+        }
+        lastTouchDist = dist;
+      }
+    }, { passive: true });
+
+    domElem.addEventListener('touchend', () => {
+      orbitState.isDragging = false;
+      lastTouchDist = 0;
+    });
+
+    // =========================================================================
+    // 8. UI UPDATE & OPTION SELECTION LOGIC
+    // =========================================================================
+    function renderComparisonTable() {
+      const tbody = document.getElementById('comparison-tbody');
+      tbody.innerHTML = OPTIONS.map((opt, idx) => {
+        const isActive = idx === currentOptionIdx;
+        return `
+          <tr onclick="selectOption(${idx})" class="cursor-pointer transition-colors ${isActive ? 'bg-sky-500/15 text-white font-semibold' : 'text-slate-300 hover:bg-slate-800/70'}">
+            <td class="py-1.5 pr-2">${opt.thkMm} mm</td>
+            <td class="py-1.5 px-1.5 text-right text-sky-300">${opt.qty40HQ}</td>
+            <td class="py-1.5 px-1.5 text-right">${opt.uncompDiaMm} mm</td>
+            <td class="py-1.5 px-1.5 text-right text-amber-300">${opt.packedDiaMm} mm</td>
+            <td class="py-1.5 pl-1.5 text-right">${opt.packedCbm.toFixed(3)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function selectOption(idx) {
+      currentOptionIdx = idx;
+      const opt = OPTIONS[idx];
+
+      // Update Tab Styling
+      document.querySelectorAll('.opt-btn').forEach((btn, i) => {
+        if (i === idx) {
+          btn.className = 'opt-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-500 text-slate-950 shadow-sm';
+        } else {
+          btn.className = 'opt-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800';
+        }
+      });
+
+      // Update Dashboard Metrics
+      document.getElementById('dash-opt-badge').textContent = `${opt.name} Specification`;
+      document.getElementById('dash-fob-price').textContent = `${opt.fobUnit} / m²`;
+      document.getElementById('dash-title').textContent = `${opt.thkMm} mm Glass Wool Roll (No Facing)`;
+      document.getElementById('dash-subtitle').textContent =
+        `Unrolled: ${opt.lengthMm.toLocaleString()} mm L × ${opt.widthMm} mm W (2×455 mm) × ${opt.thkMm} mm THK`;
+
+      document.getElementById('stat-qty').innerHTML = `${opt.qty40HQ} <span class="text-xs font-normal text-slate-400">Rolls</span>`;
+      document.getElementById('stat-total-area').textContent = `${opt.totalArea.toLocaleString()} m² • ${opt.totalKg.toLocaleString()} kg`;
+
+      document.getElementById('stat-total-cbm').innerHTML = `${(opt.qty40HQ * opt.packedCbm).toFixed(1)} <span class="text-xs font-normal text-slate-400">CBM</span>`;
+      document.getElementById('stat-comp-ratio').textContent = `Compression Ratio: ~${opt.compRatio}`;
+
+      document.getElementById('stat-packed-dia').innerHTML = `${opt.packedDiaMm} mm <span class="text-[10px] font-normal text-amber-200/70">Packed</span>`;
+      document.getElementById('stat-uncomp-dia').textContent = `Uncompressed: ${opt.uncompDiaMm} mm`;
+
+      document.getElementById('stat-packed-cbm').innerHTML = `${opt.packedCbm.toFixed(3)} m³ <span class="text-[10px] font-normal text-sky-200/70">Packed</span>`;
+      document.getElementById('stat-uncomp-cbm').textContent = `Uncompressed: ${opt.uncompCbm.toFixed(3)} m³`;
+
+      document.getElementById('detail-rval').textContent = `${opt.rValue} m²·K/W (λ = 0.036)`;
+      document.getElementById('detail-unit-area-wt').textContent = `${opt.areaPerRoll.toFixed(2)} m² / ${opt.kgPerRoll.toFixed(2)} kg`;
+      document.getElementById('detail-stacking').textContent = `3 Tiers High × ~${Math.round(opt.qty40HQ / 3)} Rolls/Tier`;
+      document.getElementById('detail-fob-total').textContent = opt.fobTotal;
+
+      // Rebuild 3D Rolls & Dimensions
+      buildRollsForOption(opt);
+      buildReferenceUnitRoll(opt);
+      buildDimensionLines(opt);
+      renderComparisonTable();
+    }
+
+    // Bind Option Tabs & Load Slider
+    document.querySelectorAll('.opt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectOption(parseInt(btn.dataset.opt, 10));
+      });
+    });
+
+    document.getElementById('load-slider').addEventListener('input', (e) => {
+      updateVisibleRollCount(parseInt(e.target.value, 10));
+    });
+
+    // Resize Handler
+    function onWindowResize() {
+      const w = containerEl.clientWidth;
+      const h = containerEl.clientHeight;
+      if (w === 0 || h === 0) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', onWindowResize);
+
+    // Animation Loop
+    function animate() {
+      requestAnimationFrame(animate);
+      updateProjectedLabels();
+      renderer.render(scene, camera);
+    }
+
+    // Initialize on load
+    window.onload = function () {
+      buildContainer();
+      selectOption(0);
+      updateCameraFromOrbit();
+      onWindowResize();
+      animate();
+    };
+  </script>
+</body>
+</html>
